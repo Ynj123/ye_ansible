@@ -1,0 +1,28 @@
+---
+- name: config keepalived 1
+    replace:
+      dest: /etc/keepalived/keepalived.conf
+      regexp: "{{ item.regexp }}"
+      replace: "{{ item.replace }}"
+    with_items:
+      - { regexp: "virtual_server[\\S\\s]*}", replace: "", when: 1 }
+      - { regexp: "notification_email[\\S\\s]*timeout 30", replace: "", when: 1 }
+      - { regexp: "vrrp_strict", replace: "", when: 1 }
+      - { regexp: "192\\.168\\.200[\\S\\s]*18", replace: "{{ float_ip }}", when: 1 }
+      - { regexp: "virtual_router_id 51", replace: "virtual_router_id 59", when: 1 }
+      - { regexp: "MASTER", replace: "BACKUP", when: ansible_default_ipv4.address == slave_ip }
+      - { regexp: "priority 100", replace: "priority 90", when: ansible_default_ipv4.address == slave_ip }
+    when: "{{ item.when }}"
+    
+    
+  - name: copy mrd and scripts from langfang
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    with_items:
+      - { src: "/data/download/yinhe/mrd-agent-client_20200714150635_9d55e21_x86_64.tar.gz", dest: "/opt/mrd-agent-client_20200714150635_9d55e21_x86_64.tar.gz", when: 1 }
+      - { src: "/data/download/yinhe/agentscript.zip", dest: "/opt/agentscript.zip", when: 1 }
+      - { src: "/data/download/yinhe/seccomponent-1.0.1-1.5c.release.x86_64.rpm", dest: "/opt/seccomponent-1.0.1-1.5c.release.x86_64.rpm", when: ansible_architecture != "aarch64" }
+      - { src: "/data/download/yinhe/seccomponent-1.0.1-1.5c.release.aarch64.rpm", dest: "/opt/seccomponent-1.0.1-1.5c.release.aarch64.rpm", when: ansible_architecture == "aarch64" }
+    when: "{{ item.when }}"
+    
