@@ -1,0 +1,45 @@
+---
+- hosts: yinhe_server
+  remote_user: root
+  tasks:
+  - name: create data partition
+    parted:
+      device: /dev/vdb
+      label: gpt
+      number: 1
+      unit: '%'
+      part_start: 0%
+      part_end: 100%
+      state: present
+    when: not ansible_devices.vdb.partitions
+    notify: handler g1
+  #创建分区后调创建逻辑卷任务
+  - meta: flush_handlers
+  
+  
+    handlers:
+  - name: create vg
+    listen: handler g1
+    lvg:
+      vg: opt_vg
+      pvs: /dev/vdb1
+  - name: create lv
+    listen: handler g1
+    lvol:
+      vg: opt_vg
+      lv: opt_lv
+      size: 100%VG
+      force: yes
+      state: present
+  - name: create a ext4 filesystem
+    listen: handler g1
+    filesystem:
+      fstype: ext4
+      dev: /dev/opt_vg/opt_lv
+  - name: mount opt
+    listen: handler g1
+    mount:
+      path: /opt
+      src: /dev/opt_vg/opt_lv
+      state: mounted
+      fstype: ext4
