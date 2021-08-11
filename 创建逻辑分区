@@ -1,0 +1,83 @@
+---
+  - block:
+    - name: create opt partitions
+      parted: 
+        device: /dev/vdb
+        label: gpt
+        number: 1
+        unit: '%'
+        part_start: 0%
+        part_end: 100%
+        state: present
+
+    - name: create vg
+      lvg:
+        vg: opt_vg
+        pvs: /dev/vdb1
+    - name: create lv
+      lvol:
+        vg: opt_vg
+        lv: opt_lv
+        size: 100%VG
+        force: yes
+        state: present
+    - name: create a ext4 filesystem
+      filesystem:
+        fstype: ext4
+        dev: /dev/opt_vg/opt_lv
+    - name: mount opt
+      mount:
+        path: /opt
+        src: /dev/opt_vg/opt_lv
+        state: mounted
+        fstype: ext4
+    when: not ansible_devices.vdb.partitions
+
+  - name: copy sh file
+    copy: 
+      src: /data/deploy/install_plwaf/NDR_install.sh
+      dest: /opt/NDR_install.sh
+      owner: root
+      group: root
+      mode: 0755
+
+  - name: ls /opt
+    shell: ls /opt
+    register: lso
+  - debug: var=lso.stdout_lines
+
+  - name: wget nginx file
+    get_url:
+      url: http://10.8.120.42/waf_detect/nginx.conf
+      dest: /opt/nginx.conf
+      owner: root
+      group: root
+
+  - name: wget NDR package with ARM
+    get_url:
+      url: http://10.8.120.42/waf_detect/NDR-Plugin_20210218161807_688f7b3.7751462_noarch.tar.gz
+      dest: /opt/NDR-Plugin_20210218161807_688f7b3.7751462_noarch.tar.gz
+      owner: root
+      group: root
+    when: ansible_distribution_release == "SP8"
+
+  - name: wget NDR package with x86
+    get_url:
+      url: http://10.8.120.42/waf_detect/NDR-Plugin_20210304110055_20db3dd.8286619x86.tar.gz
+      dest: /opt/NDR-Plugin_20210304110055_20db3dd.8286619x86.tar.gz
+      owner: root
+      group: root
+    when: ansible_distribution_release == "SP5"
+
+  - name: config sh file rgn
+    replace: path=/opt/NDR_install.sh regexp='Rgn' replace={{rgn}}
+  - name: config sh file Engine_ip1
+    replace: path=/opt/NDR_install.sh regexp='engine_ip1' replace={{Engine_ip1}}
+  - name: config sh file Engine_ip2
+    replace: path=/opt/NDR_install.sh regexp='engine_ip2' replace={{Engine_ip2}}
+
+  - name: sh /opt/NDR_install.sh --- Please Wait 30s ...
+    shell: sh /opt/NDR_install.sh
+    register: NDR
+  - debug: var=NDR.stdout_lines
+
